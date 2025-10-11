@@ -1,6 +1,8 @@
 {
     "coins": ["bitcoin", "ethereum", "litecoin"],
+    "stocks": ["AAPL", "MSFT", "GOOGL"],
     "vs_currency": "usd",
+    "currencies": ["usd", "eur", "gbp"],
     "days": 30,
     "postgres": {
         "host": "localhost",

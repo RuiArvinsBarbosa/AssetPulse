@@ -1,17 +1,19 @@
 import psycopg2
-import json
 import os
 
 def get_connection():
-    config_path = os.path.join(os.path.dirname(__file__), "../config/config.json")
-    with open(config_path) as f:
-        config = json.load(f)["postgres"]
+    """Return a PostgreSQL connection using environment variables."""
+    host     = os.environ.get("POSTGRES_HOST", "localhost")
+    port     = int(os.environ.get("POSTGRES_PORT", 5432))
+    database = os.environ.get("POSTGRES_DB", "assetpulse")
+    user     = os.environ.get("POSTGRES_USER", "assetpulse")
+    password = os.environ.get("POSTGRES_PASSWORD", "pass")
 
     conn = psycopg2.connect(
-        host=config["host"],
-        port=config["port"],
-        database=config["database"],
-        user=config["user"],
-        password=config["password"]
+        host=host,
+        port=port,
+        database=database,
+        user=user,
+        password=password
     )
     return conn
