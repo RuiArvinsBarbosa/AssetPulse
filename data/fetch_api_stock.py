@@ -1,5 +1,6 @@
+import streamlit as st
 import requests
-import pandas   as pd
+import pandas as pd
 import os
 import json
 import yfinance as yf
@@ -18,41 +19,29 @@ config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config",
 with open(config_path) as f:
     config = json.load(f)
 
+@st.cache_data(ttl=3600)  # cache 1 hour
+def get_fx_rate(currency: str):
+    if currency.lower() == "usd":
+        return 1.0
+    try:
+        url = "https://api.coingecko.com/api/v3/exchange_rates"
+        data = requests.get(url, timeout=10).json()
+        rate = data["rates"][currency.lower()]["value"]
+        return rate
+    except Exception as e:
+        logging.error(f"Failed to fetch FX rate for {currency}, defaulting to 1.0: {e}")
+        return 1.0
 
-def fetch_stock_data(ticker="AAPL", days=30):
-    """
-    Fetch historical stock data from Yahoo Finance, calculate technical indicators,
-    and handle errors gracefully.
 
-    Args:
-        ticker (str, optional): Stock ticker symbol (e.g., 'AAPL', 'GOOGL').
-                                Defaults to 'AAPL'.
-        days (int, optional): Number of past days of data to retrieve. Defaults to 30.
-
-    Returns:
-        pd.DataFrame: Cleaned DataFrame containing the following columns:
-            - 'timestamp': Date of the data point
-            - 'price': Closing price
-            - 'MA7': 7-day moving average
-            - 'MA30': 30-day moving average
-            - 'daily_change': Daily percentage change
-            - 'volatility': 7-day rolling standard deviation of price
-        Returns an empty DataFrame with the same columns if data is missing
-        or an error occurs.
-
-    Notes:
-        - Flattens MultiIndex columns returned by yfinance if necessary.
-        - Drops rows where moving averages are NaN.
-        - Uses auto-adjusted prices for accurate calculations.
-    """
+def fetch_stock_data(ticker="AAPL", days=30, currency="usd"):
+    """Fetch historical stock data and convert to target currency."""
     try:
         # --- Use only date, no time ---
-        end   = datetime.today().date()
+        end = datetime.today().date()
         start = end - timedelta(days=days)
 
-        # Fetch data
+        # --- Fetch stock in USD ---
         df = yf.download(ticker, start=start, end=end + timedelta(days=1), progress=False, auto_adjust=True)
-
         logging.info(f"Fetching {ticker} from {start} to {end}, raw rows: {len(df)}")
 
         if df.empty:
@@ -71,16 +60,18 @@ def fetch_stock_data(ticker="AAPL", days=30):
             logging.warning(f"No 'Close' column found for {ticker}")
             return pd.DataFrame(columns=["timestamp", "price", "MA7", "MA30", "daily_change", "volatility"])
 
-        logging.info(f"Columns after flatten: {df.columns}, using close column: {close_col}")
-
-        # Keep only timestamp + price
+        # --- Keep only timestamp + price ---
         df = df[['Date', close_col]].rename(columns={'Date': 'timestamp', close_col: 'price'})
 
+        # --- Convert USD to target currency ---
+        fx_rate = get_fx_rate(currency)
+        df["price"] = df["price"] * fx_rate
+
         # --- Calculate indicators ---
-        df["MA7"]           = df["price"].rolling(7).mean()
-        df["MA30"]          = df["price"].rolling(30).mean()
-        df["daily_change"]  = df["price"].pct_change() * 100
-        df["volatility"]    = df["price"].rolling(7).std()
+        df["MA7"] = df["price"].rolling(7).mean()
+        df["MA30"] = df["price"].rolling(30).mean()
+        df["daily_change"] = df["price"].pct_change() * 100
+        df["volatility"] = df["price"].rolling(7).std()
 
         # Drop rows where moving averages are NaN
         df = df.dropna(subset=["MA7"])

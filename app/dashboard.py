@@ -23,6 +23,22 @@ logging.basicConfig(
 )
 
 # ==========================================================
+# 🟢 FX RATE CACHE FUNCTION
+# ==========================================================
+@st.cache_data(ttl=3600)
+def get_fx_rate(currency: str):
+    if currency.lower() == "usd":
+        return 1.0
+    try:
+        url = "https://api.coingecko.com/api/v3/exchange_rates"
+        data = requests.get(url, timeout=10).json()
+        rate = data["rates"][currency.lower()]["value"]
+        return rate
+    except Exception as e:
+        logging.error(f"Failed to fetch FX rate for {currency}, defaulting to 1.0: {e}")
+        return 1.0
+
+# ==========================================================
 # 🧠 CONFIGURATION: ENV VARIABLES FIRST, FALLBACK TO config.json
 # ==========================================================
 config_path = "config/config.json"
@@ -66,7 +82,7 @@ title  = ""
 # ==========================================================
 # 🟢 CACHE WRAPPER FOR CRYPTO DATA
 # ==========================================================
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=3600)  # 1 hour
 def get_crypto_data_cached(coin_id, days, vs_currency):
     """Cache wrapper for crypto data fetching."""
     return fetch_crypto_data(coin_id=coin_id, days=days, vs_currency=vs_currency)
@@ -76,13 +92,19 @@ def get_crypto_data_cached(coin_id, days, vs_currency):
 # ==========================================================
 if asset_type == "Crypto":
     symbol = st.selectbox("Select cryptocurrency", config_coins, key="crypto_select")
-    df = get_crypto_data_cached(coin_id=symbol, days=days, vs_currency=selected_currency)
+    # Pass selected_currency from UI
+    df = get_crypto_data_cached(
+        coin_id=symbol,
+        days=days,
+        vs_currency=selected_currency.lower()  # lowercase ensures CoinGecko compatibility
+    )
     title = f"{symbol.capitalize()} Price & Indicators ({selected_currency.upper()})"
 
 elif asset_type == "Stock":
     symbol = st.selectbox("Select stock", config_stocks, key="stock_select")
-    df = fetch_stock_data(ticker=symbol, days=days)
-    title = f"{symbol} Stock Price & Indicators"
+    # Pass selected_currency from UI for FX conversion
+    df = fetch_stock_data(ticker=symbol, days=days, currency=selected_currency.lower())
+    title = f"{symbol} Stock Price & Indicators ({selected_currency.upper()})"
 
 # ==========================================================
 # 🧮 DATA DISPLAY AND INDICATORS
