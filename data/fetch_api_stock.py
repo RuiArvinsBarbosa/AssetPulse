@@ -6,7 +6,6 @@ import json
 import yfinance as yf
 from datetime import datetime, timedelta
 import logging
-import time
 
 # --- Logging setup ---
 logging.basicConfig(
@@ -19,64 +18,89 @@ config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config",
 with open(config_path) as f:
     config = json.load(f)
 
-@st.cache_data(ttl=3600)  # cache 1 hour
+@st.cache_data(ttl=3600)
 def get_fx_rate(currency: str):
+    """
+    Returns 1.0 for USD, otherwise fetches USD -> target currency using a free API.
+    Uses https://open.er-api.com (no API key required).
+    """
     if currency.lower() == "usd":
+        logging.info("get_fx_rate currency-> USD (default 1.0)")
         return 1.0
+
     try:
-        url = "https://api.coingecko.com/api/v3/exchange_rates"
-        data = requests.get(url, timeout=10).json()
-        rate = data["rates"][currency.lower()]["value"]
-        return rate
+        url = "https://open.er-api.com/v6/latest/USD"
+        response = requests.get(url, timeout=10)
+        data = response.json()
+
+        if "rates" in data and currency.upper() in data["rates"]:
+            rate = data["rates"][currency.upper()]
+            logging.info(f"get_fx_rate USD->{currency.upper()} = {rate}")
+            return rate
+        else:
+            logging.warning(f"Unexpected FX response: {data}")
+            return 1.0
+
     except Exception as e:
         logging.error(f"Failed to fetch FX rate for {currency}, defaulting to 1.0: {e}")
         return 1.0
 
-
+# --- Stock fetcher ---
+@st.cache_data(ttl=3600)
 def fetch_stock_data(ticker="AAPL", days=30, currency="usd"):
-    """Fetch historical stock data and convert to target currency."""
+    """Fetch historical stock data and compute indicators."""
     try:
-        # --- Use only date, no time ---
+        # --- Date range ---
         end = datetime.today().date()
         start = end - timedelta(days=days)
 
-        # --- Fetch stock in USD ---
-        df = yf.download(ticker, start=start, end=end + timedelta(days=1), progress=False, auto_adjust=True)
-        logging.info(f"Fetching {ticker} from {start} to {end}, raw rows: {len(df)}")
+        # --- Fetch from Yahoo Finance ---
+        df = yf.download(
+            ticker,
+            start=start,
+            end=end + timedelta(days=1),
+            progress=False,
+            auto_adjust=True
+        )
+        logging.info(f"Fetched {ticker}: {len(df)} rows from {start} to {end}")
 
         if df.empty:
             logging.warning(f"No data returned for ticker {ticker}")
             return pd.DataFrame(columns=["timestamp", "price", "MA7", "MA30", "daily_change", "volatility"])
 
-        # --- Flatten MultiIndex columns ---
+        # --- Flatten MultiIndex columns (if any) ---
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = ["_".join(col).strip() if isinstance(col, tuple) else col for col in df.columns]
 
         df.reset_index(inplace=True)
 
-        # --- Find Close column dynamically ---
-        close_col = next((c for c in df.columns if c.startswith("Close")), None)
-        if not close_col:
+        # --- Identify Close column ---
+        close_candidates = [c for c in df.columns if "Close" in c]
+        if not close_candidates:
             logging.warning(f"No 'Close' column found for {ticker}")
             return pd.DataFrame(columns=["timestamp", "price", "MA7", "MA30", "daily_change", "volatility"])
+
+        close_col = close_candidates[0]
 
         # --- Keep only timestamp + price ---
         df = df[['Date', close_col]].rename(columns={'Date': 'timestamp', close_col: 'price'})
 
-        # --- Convert USD to target currency ---
+        # --- Convert to target currency ---
         fx_rate = get_fx_rate(currency)
         df["price"] = df["price"] * fx_rate
 
-        # --- Calculate indicators ---
+        # --- Calculate technical indicators ---
         df["MA7"] = df["price"].rolling(7).mean()
         df["MA30"] = df["price"].rolling(30).mean()
         df["daily_change"] = df["price"].pct_change() * 100
         df["volatility"] = df["price"].rolling(7).std()
 
-        # Drop rows where moving averages are NaN
-        df = df.dropna(subset=["MA7"])
+        # Drop rows with NaN MAs
+        df = df.dropna(subset=["MA7"]).reset_index(drop=True)
 
-        logging.info(f"Processed data rows: {len(df)}")
+        # --- Log sample for debugging ---
+        logging.info(f"Processed {ticker} rows: {len(df)}\nSample:\n{df.head()}")
+
         return df
 
     except Exception as e:
