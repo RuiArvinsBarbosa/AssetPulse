@@ -1,14 +1,58 @@
 {
-    "coins": ["bitcoin", "ethereum", "litecoin"],
-    "stocks": ["AAPL", "MSFT", "GOOGL"],
+    "coins": [
+        "avalanche-2",
+        "binancecoin",
+        "bitcoin",
+        "cardano",
+        "dogecoin",
+        "ethereum",
+        "litecoin",
+        "matic-network",
+        "polkadot",
+        "ripple",
+        "solana"
+    ],
+    "stocks": [
+        "AAPL",
+        "AMD",
+        "AMZN",
+        "GOOGL",
+        "IBM",
+        "INTC",
+        "META",
+        "MSFT",
+        "NFLX",
+        "NVDA",
+        "ORCL",
+        "TSLA"
+    ],
     "vs_currency": "usd",
     "currencies": ["usd", "eur", "gbp"],
     "days": 30,
+    "defaults": {
+        "app_theme": "Light",
+        "default_currency": "USD",
+        "data_refresh_rate": 15,
+        "enable_logging": true
+    },
     "postgres": {
         "host": "localhost",
         "port": 5432,
         "database": "assetpulse",
         "user": "assetpulse",
         "password": "pass"
+    },
+    "coin_map": {
+        "ADA": "cardano",
+        "AVAX": "avalanche-2",
+        "BNB": "binancecoin",
+        "BTC": "bitcoin",
+        "DOGE": "dogecoin",
+        "DOT": "polkadot",
+        "ETH": "ethereum",
+        "LTC": "litecoin",
+        "MATIC": "matic-network",
+        "SOL": "solana",
+        "XRP": "ripple"
     }
 }
