@@ -10,10 +10,14 @@
 
 ## 🚀 Features
 
-* Fetch live cryptocurrency and stock data
-* Candlestick charts with moving averages
-* Portfolio simulation 💰
-* Export data to CSV/Excel (planned)
+* Fetch live cryptocurrency and stock market data
+* Candlestick charts with moving averages (7-day, 30-day)
+* Portfolio simulator – track your investments 💰
+* Export portfolio data to CSV/Excel (planned)
+* Configurable dashboard for coins, stocks, currencies, and historical range
+* Optional PostgreSQL logging for historical price tracking
+* Automatic error handling and API rate limit retries
+* Customizable defaults: theme, currency, data refresh rate, logging
 
 ---
 
@@ -23,7 +27,7 @@
 * **Frontend:** Streamlit
 * **Visualization:** Plotly
 * **Data Sources:** Yahoo Finance API (stocks), CoinGecko API (crypto)
-* **Database (optional):** PostgreSQL for historical price logging
+* **Database:** PostgreSQL for historical price logging
 
 ---
 
@@ -33,17 +37,42 @@ All environment settings are stored in `config/config.json`. You can adjust asse
 
 ```json
 {
-    "coins": ["bitcoin", "ethereum", "litecoin"],
-    "stocks": ["AAPL", "MSFT", "GOOGL"],
+    "coins": [
+        "avalanche-2", "binancecoin", "bitcoin", "cardano", "dogecoin",
+        "ethereum", "litecoin", "matic-network", "polkadot", "ripple", "solana"
+    ],
+    "stocks": [
+        "AAPL", "AMD", "AMZN", "GOOGL", "IBM", "INTC", "META", "MSFT",
+        "NFLX", "NVDA", "ORCL", "TSLA"
+    ],
     "vs_currency": "usd",
     "currencies": ["usd", "eur", "gbp"],
     "days": 30,
+    "defaults": {
+        "app_theme": "Light",
+        "default_currency": "USD",
+        "data_refresh_rate": 15,
+        "enable_logging": true
+    },
     "postgres": {
         "host": "localhost",
         "port": 5432,
         "database": "assetpulse",
         "user": "assetpulse",
         "password": "pass"
+    },
+    "coin_map": {
+        "ADA": "cardano",
+        "AVAX": "avalanche-2",
+        "BNB": "binancecoin",
+        "BTC": "bitcoin",
+        "DOGE": "dogecoin",
+        "DOT": "polkadot",
+        "ETH": "ethereum",
+        "LTC": "litecoin",
+        "MATIC": "matic-network",
+        "SOL": "solana",
+        "XRP": "ripple"
     }
 }
 ```
@@ -52,10 +81,15 @@ All environment settings are stored in `config/config.json`. You can adjust asse
 
 * **coins** – List of cryptocurrencies to fetch from CoinGecko
 * **stocks** – Stock ticker symbols to fetch from Yahoo Finance
-* **vs_currency** – Default currency for crypto prices
-* **currencies** – Available currencies to select in the dashboard
-* **days** – Number of past days of historical data to fetch
-* **postgres** – Database credentials for logging historical prices (optional)
+* **currencies** – Available currencies in the dashboard
+* **days** – Number of historical days to fetch
+* **defaults** – Dashboard defaults:
+* 	**app_theme** – Light or Dark theme
+* 	**default_currency** – Currency shown on dashboard
+* 	**data_refresh_rate** – Refresh rate in minutes
+* 	**enable_logging** – Enable/disable logging
+* **postgres** – Database credentials for historical logging (optional)
+* **coin_map** – Maps short symbols to CoinGecko IDs
 
 ---
 
@@ -95,14 +129,14 @@ pip install -r requirements.txt
 6. Run the Streamlit dashboard:
 
 ```bash
-streamlit run app/dashboard.py
+streamlit run dashboard.py
 ```
 
 7. Open the URL shown in the terminal (usually `http://localhost:8501`).
 
 ---
 
-## 🌐 Deployment (Optional)
+## 🌐 Deployment
 
 * The app is deployed online using **Render**.
 * Live demo: [https://assetpulse.onrender.com](https://assetpulse.onrender.com)
@@ -119,6 +153,9 @@ streamlit run app/dashboard.py
 
 ## ⚡ Notes
 
-* **Error Handling:** API rate limits and network errors are handled with retries and logging.
-* **Caching:** Crypto data is cached for 10 minutes to reduce API calls.
-* **Portfolio Simulator:** Allows you to simulate investment growth over selected asset's history.
+* **Error Handling:** API rate limits and network issues are managed with retries & logging
+* **Caching:** Crypto data cached for 10 minutes to reduce API calls
+* **Portfolio Simulator:** Tracks hypothetical investments over historical data
+* **Custom Defaults:** Theme, currency, refresh rate, and logging can be configured
+* **Expanded Asset Coverage:** 11 cryptocurrencies, 12 stocks
+* **First Final Version:** Stable, fully-configurable, and ready for deployment
