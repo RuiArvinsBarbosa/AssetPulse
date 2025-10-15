@@ -86,7 +86,7 @@ col_title.title("AssetPulse – Crypto & Stock Dashboard")
 if current_user and user_email:
     col_user.markdown(f"**Logged in as:** {current_user} ({user_email})", unsafe_allow_html=True)
 
-asset_type = st.radio("Asset type", ["CRYPTO","STOCK"], key="asset_type_select", horizontal=True)
+asset_type = st.radio("Asset type", ["STOCK","CRYPTO"], key="asset_type_select", horizontal=True)
 title, asset_code, df = "", "", pd.DataFrame()
 
 # -------------------------------
