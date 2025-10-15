@@ -7,50 +7,48 @@
 import psycopg2
 import os
 from psycopg2.extras import RealDictCursor
-import socket
-
-# ==============================
-# Force IPv4 for psycopg2
-# ==============================
-_original_getaddrinfo = socket.getaddrinfo
-def getaddrinfo_ipv4_only(*args, **kwargs):
-    results = _original_getaddrinfo(*args, **kwargs)
-    # Only keep IPv4 addresses
-    return [x for x in results if x[0] == socket.AF_INET]
-
-socket.getaddrinfo = getaddrinfo_ipv4_only
 
 USE_SUPABASE = os.getenv("USE_SUPABASE", "false").lower() == "true"
 
 def get_connection():
     """
-    Return a PostgreSQL connection based on USE_SUPABASE flag in environment variables.
+    Return a PostgreSQL connection based on USE_SUPABASE flag.
 
-    Supabase connections use SSL. Local Docker connections do not.
+    - Local dev: Direct Connection or Docker
+    - Render: Session Pooler (IPv4)
     """
+    if USE_SUPABASE:
+        if os.getenv("RENDER") == "true":
+            # Session Pooler for Render
+            host     = os.getenv("SUPABASE_POOLER_HOST")
+            port     = int(os.getenv("SUPABASE_POOLER_PORT", 5432))
+            database = os.getenv("SUPABASE_POOLER_DB")
+            user     = os.getenv("SUPABASE_POOLER_USER")
+            password = os.getenv("SUPABASE_POOLER_PASSWORD")
+        else:
+            # Direct Connection for local dev
+            host     = os.getenv("SUPABASE_DIRECT_HOST")
+            port     = int(os.getenv("SUPABASE_DIRECT_PORT", 5432))
+            database = os.getenv("SUPABASE_DIRECT_DB")
+            user     = os.getenv("SUPABASE_DIRECT_USER")
+            password = os.getenv("SUPABASE_DIRECT_PASSWORD")
 
-    # Determine which database to use
-    use_supabase = os.getenv("USE_SUPABASE", "false").lower() == "true"
-
-    if use_supabase:
-        host     = os.getenv("SUPABASE_POSTGRES_HOST")
-        port     = int(os.getenv("SUPABASE_POSTGRES_PORT", 5432))
-        database = os.getenv("SUPABASE_POSTGRES_DB")
-        user     = os.getenv("SUPABASE_POSTGRES_USER")
-        password = os.getenv("SUPABASE_POSTGRES_PASSWORD")
-        sslmode  = "require"  # Supabase requires SSL
+        sslmode = "require"
     else:
+        # Local Docker
         host     = os.getenv("LOCAL_POSTGRES_HOST")
         port     = int(os.getenv("LOCAL_POSTGRES_PORT", 5432))
         database = os.getenv("LOCAL_POSTGRES_DB")
         user     = os.getenv("LOCAL_POSTGRES_USER")
         password = os.getenv("LOCAL_POSTGRES_PASSWORD")
-        sslmode  = None
+        sslmode = None
 
-    # Check that all credentials are provided
+    # Debug: print all credentials being used (do not print password in prod)
+    print(f"DEBUG: Connecting to {host}:{port} db={database} user={user}")
+
+    # Check all required variables
     if not all([host, database, user, password]):
-        print("❌ Missing database credentials. Please check your environment variables.")
-        return None
+        raise ValueError("❌ Missing database credentials. Check environment variables.")
 
     try:
         conn = psycopg2.connect(
@@ -60,11 +58,9 @@ def get_connection():
             user=user,
             password=password,
             sslmode=sslmode,
-            cursor_factory=RealDictCursor  # return dict-like rows
+            cursor_factory=RealDictCursor
         )
-        # Only print which DB, not sensitive info
-        print(f"✅ Connected to {'Supabase' if use_supabase else 'Local Docker'} database")
+        print(f"✅ Connected to {'Supabase' if USE_SUPABASE else 'Local Docker'} database at {host}")
         return conn
     except psycopg2.Error as e:
-        print(f"❌ Failed to connect to PostgreSQL: {e}")
-        return None
+        raise ConnectionError(f"❌ Failed to connect to PostgreSQL: {e}")

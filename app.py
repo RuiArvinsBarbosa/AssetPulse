@@ -1,8 +1,16 @@
 import os
+from dotenv import load_dotenv
+
+# -------------------------------
+# Load .env first (locally only)
+# -------------------------------
+if os.getenv("RENDER") is None:
+    load_dotenv()
+
+# Now import everything else
 import json
 from datetime import datetime
 import streamlit as st
-from dotenv import load_dotenv
 
 from data.table_users_crud import (
     insert_users_ft,
@@ -14,13 +22,6 @@ from data.table_users_crud import (
 )
 
 from data.db_connection import get_connection
-
-# -------------------------------
-# Load .env first
-# -------------------------------
-# Only load .env locally, not on Render
-if os.getenv("RENDER") is None:
-    load_dotenv()                # Load .env secrets (PostgreSQL credentials, etc.)
 
 st.write("USE_SUPABASE:", os.getenv("USE_SUPABASE"))
 st.write("SUPABASE_HOST:", os.getenv("SUPABASE_POSTGRES_HOST"))
