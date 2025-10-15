@@ -54,13 +54,6 @@ All environment settings are stored in `config/config.json`. You can adjust asse
         "data_refresh_rate": 15,
         "enable_logging": true
     },
-    "postgres": {
-        "host": "localhost",
-        "port": 5432,
-        "database": "assetpulse",
-        "user": "assetpulse",
-        "password": "pass"
-    },
     "coin_map": {
         "ADA": "cardano",
         "AVAX": "avalanche-2",

@@ -35,8 +35,8 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- User session check ---
-current_user = st.session_state.get("current_user")
-user_email   = st.session_state.get("user_email")
+current_user = st.session_state.get("current_username")
+user_email   = st.session_state.get("username_email")
 
 # --- Check login ---
 if "current_username" not in st.session_state or "username_email" not in st.session_state:
@@ -56,6 +56,7 @@ col_user.markdown(
     f"**Logged in as:** {current_user} ({user_email})",
     unsafe_allow_html=True
 )
+
 
 st.markdown("Adjust your application preferences below.")
 
