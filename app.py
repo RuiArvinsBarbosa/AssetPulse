@@ -22,10 +22,6 @@ from data.db_connection import get_connection
 if os.getenv("RENDER") is None:
     load_dotenv()                # Load .env secrets (PostgreSQL credentials, etc.)
 
-import socket
-resolved_ip = socket.gethostbyname(os.getenv("SUPABASE_POSTGRES_HOST"))
-st.write("Resolved Supabase IP:", resolved_ip)
-
 st.write("USE_SUPABASE:", os.getenv("USE_SUPABASE"))
 st.write("SUPABASE_HOST:", os.getenv("SUPABASE_POSTGRES_HOST"))
 
