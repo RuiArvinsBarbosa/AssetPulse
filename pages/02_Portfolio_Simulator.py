@@ -7,7 +7,7 @@ import json, os
 # -------------------------------
 # Project imports
 # -------------------------------
-from data.fetch_api_crypto import get_crypto_price_on_date, simulate_investment_curve
+from data.fetch_api_crypto import simulate_crypto_investment_curve
 from data.fetch_api_stock  import simulate_stock_investment_curve
 
 # -------------------------------
@@ -98,7 +98,7 @@ if st.button("Simulate Investment"):
     else:
         # Fetch historical portfolio data
         if asset_type == "CRYPTO":
-            df_prices = simulate_investment_curve(symbol, invest_date, amount_invested, currency.lower())
+            df_prices = simulate_crypto_investment_curve(symbol, invest_date, amount_invested, currency.lower())
         else:
             df_prices = simulate_stock_investment_curve(symbol, invest_date, amount_invested, currency.upper())
 

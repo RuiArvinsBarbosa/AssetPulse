@@ -93,8 +93,6 @@ def fetch_transactions_by_seq_no(seq_no: int):
 
 def fetch_transactions_by_user_asset(asset_code: str, user_seq_no: int):
     """Fetch all transactions for a user and a specific asset."""
-    print(f"asset_code={asset_code}")
-    print(f"user_seq_no={user_seq_no}")
     try:
         conn = get_connection()
         print(f"conn={conn}")

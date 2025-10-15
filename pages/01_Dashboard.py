@@ -94,6 +94,7 @@ title, asset_code, df = "", "", pd.DataFrame()
 # -------------------------------
 if asset_type=="CRYPTO":
     asset_code = st.selectbox("Select cryptocurrency", config_coins, key="crypto_select")
+
     df = fetch_crypto_data(asset_code, days, selected_currency)
     
     if df.empty and selected_currency!="usd":
@@ -183,7 +184,6 @@ else:
     try:
         st.subheader(f"Transactions for user '{user_seq_no}' ({asset_code.upper()})")
         transactions = fetch_transactions_by_user_asset(asset_code.upper(), user_seq_no)
-        print(f"transactions={transactions}")
         if transactions:
             display_data = [
                 {

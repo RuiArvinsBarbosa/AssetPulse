@@ -1,137 +1,110 @@
-from datetime import datetime, date, timedelta
+import streamlit as st
 import requests
 import pandas as pd
+from datetime import datetime, timedelta
 import logging
 import os
 import json
-import functools
 
 # --- Logging setup ---
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s"
-)
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s [%(levelname)s] %(message)s")
 
-# --- Load config safely ---
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-CONFIG_PATH = os.path.join(BASE_DIR, "config", "config.json")
+# --- Load config ---
+config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "config.json")
+with open(config_path) as f:
+    config = json.load(f)
 
-# --- Cached versions to prevent hitting rate limits ---
-@functools.lru_cache(maxsize=128)
-def cached_fetch_crypto_data(coin_id, days, currency):
-    return fetch_crypto_data(coin_id=coin_id, days=days, currency=currency)
-
-@functools.lru_cache(maxsize=256)
-def cached_get_crypto_price_on_date(symbol, date_value, currency):
-    return get_crypto_price_on_date(symbol=symbol, date_value=date_value, currency=currency)
-
-try:
-    with open(CONFIG_PATH, "r") as f:
-        CONFIG = json.load(f)
-        logging.info(f"Loaded configuration from {CONFIG_PATH}")
-except FileNotFoundError:
-    logging.error(f"Config file not found at {CONFIG_PATH}")
-    CONFIG = {}
-
-COIN_MAP = CONFIG.get("coin_map", {})
+COIN_MAP = config.get("coin_map", {})
 if not COIN_MAP:
-    logging.warning("⚠️ COIN_MAP is empty! Make sure your config/config.json has 'coin_map' defined.")
+    logging.warning("⚠️ COIN_MAP is empty! Make sure your config.json has 'coin_map' defined.")
 
-# --- FX ---
+# ================================
+# 🌐 FX RATE FETCHER
+# ================================
+@st.cache_data(ttl=3600)
 def get_fx_rate(currency: str):
     if currency.lower() == "usd":
         return 1.0
     try:
-        url      = "https://open.er-api.com/v6/latest/USD"
-        response = requests.get(url, timeout=10)
-        data     = response.json()
-        return data.get("rates", {}).get(currency.upper(), 1.0)
+        url  = "https://open.er-api.com/v6/latest/USD"
+        resp = requests.get(url, timeout=10).json()
+        rate = resp.get("rates", {}).get(currency.upper(), 1.0)
+        logging.info(f"get_fx_rate: USD -> {currency.upper()} = {rate}")
+        return rate
     except Exception as e:
-        logging.error(f"Failed to fetch FX rate for {currency}, defaulting to 1.0: {e}")
+        logging.error(f"Failed to fetch FX rate for {currency}, default 1.0: {e}")
         return 1.0
 
-# --- Crypto fetch ---
-def fetch_crypto_data(coin_id, days, currency):
-    coin_id  = coin_id.lower()
-    currency = currency.lower()
-    end      = datetime.today().date()
-    start    = end - timedelta(days=days)
-    url      = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
-    params   = {"vs_currency": currency, "days": days}
-    try:
-        response = requests.get(url, params=params, timeout=10)
-        response.raise_for_status()
-        prices = response.json().get("prices", [])
-        if not prices:
-            return pd.DataFrame(columns=["timestamp", "price", "MA7", "MA30", "daily_change", "volatility"])
-        df = pd.DataFrame(prices, columns=["timestamp", "price"])
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-        if currency != "usd":
-            fx = get_fx_rate(currency)
-            df["price"] *= fx
-        df["MA7"]          = df["price"].rolling(7).mean()
-        df["MA30"]         = df["price"].rolling(30).mean()
-        df["daily_change"] = df["price"].pct_change() * 100
-        df["volatility"]   = df["price"].rolling(7).std()
-        df = df.dropna(subset=["MA7"])
-        return df
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Failed to fetch crypto data for {coin_id}: {e}")
-        return pd.DataFrame(columns=["timestamp", "price", "MA7", "MA30", "daily_change", "volatility"])
-
-# --- Price on date ---
-def get_crypto_price_on_date(symbol, date_value, currency):
-    if date_value is None:
-        date_value = datetime.today().date()
+# ================================
+# 📈 CRYPTO DATA FETCHER
+# ================================
+@st.cache_data(ttl=600)
+def fetch_crypto_data(symbol, days, currency="USD"):
+    """Fetch historical crypto prices + indicators from CoinGecko."""
     coin_id = COIN_MAP.get(symbol.upper())
     if not coin_id:
         logging.error(f"Symbol '{symbol}' not in COIN_MAP")
-        return None
-    date_str = date_value.strftime("%d-%m-%Y")
-    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/history"
-    params = {"date": date_str, "localization": "false"}
+        return pd.DataFrame(columns=["timestamp","price","MA7","MA30","daily_change","volatility"])
+
     try:
-        response = requests.get(url, params=params, timeout=10)
-        response.raise_for_status()
-        price = response.json()["market_data"]["current_price"].get(currency.lower())
-        return price
-    except Exception as e:
-        logging.error(f"Failed to fetch price for {symbol} on {date_str}: {e}")
-        return None
+        url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
+        params = {"vs_currency": currency.lower(), "days": days}
+        resp = requests.get(url, params=params, timeout=10)
+        resp.raise_for_status()
+        prices = resp.json().get("prices", [])
+        if not prices:
+            logging.warning(f"No prices returned for {symbol}")
+            return pd.DataFrame(columns=["timestamp","price","MA7","MA30","daily_change","volatility"])
 
-# --- Simulate investment ---
-def simulate_investment(symbol, invest_date, amount, currency):
-    if invest_date is None:
-        invest_date = datetime(2023, 1, 1)
-    invest_price = cached_get_crypto_price_on_date(symbol, invest_date, currency)
-    current_price = get_crypto_price_on_date(symbol, datetime.today().date(), currency)
-    if invest_price is None or current_price is None:
-        return None
-    return amount * current_price / invest_price
+        df = pd.DataFrame(prices, columns=["timestamp","price"])
+        # Ensure datetime
+        df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce", unit="ms")
+        df = df.dropna(subset=["timestamp"])
 
-def get_valid_coin_id(symbol: str):
-    symbol = symbol.upper()
-    return COIN_MAP.get(symbol, symbol.lower())
+        # FX conversion
+        if currency.lower() != "usd":
+            fx_rate = get_fx_rate(currency)
+            df["price"] *= fx_rate
 
-def get_crypto_timeseries(symbol, days, currency):
-    coin_id = get_valid_coin_id(symbol)
-    return fetch_crypto_data(coin_id=coin_id, days=days, currency=currency)
+        # Indicators
+        df["MA7"] = df["price"].rolling(7, min_periods=1).mean()
+        df["MA30"] = df["price"].rolling(30, min_periods=1).mean()
+        df["daily_change"] = df["price"].pct_change() * 100
+        df["volatility"] = df["price"].rolling(7, min_periods=1).std()
 
-def simulate_investment_curve(symbol, invest_date, amount, currency):
-    if invest_date is None:
-        invest_date = datetime(2023, 1, 1)
-    today            = datetime.today().date()
-    invest_date_only = invest_date.date() if isinstance(invest_date, datetime) else invest_date
-    days             = (today - invest_date_only).days
+        logging.info(f"Fetched {len(df)} rows for {symbol} ({coin_id})")
+        return df.reset_index(drop=True)
+
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Failed to fetch crypto data for {symbol} ({coin_id}): {e}")
+        return pd.DataFrame(columns=["timestamp","price","MA7","MA30","daily_change","volatility"])
+
+# ================================
+# 📊 SIMULATE CRYPTO INVESTMENT
+# ================================
+@st.cache_data(ttl=3600)
+def simulate_crypto_investment_curve(symbol, invest_date, amount, currency="USD"):
+    """Return portfolio evolution from invest_date until today."""
+    today = datetime.today().date()
+    invest_dt = invest_date.date() if isinstance(invest_date, datetime) else invest_date
+    days = (today - invest_dt).days
     if days <= 0:
-        return pd.DataFrame(columns=["timestamp", "portfolio_value"])
-    coin_id = get_valid_coin_id(symbol)
-    df = cached_fetch_crypto_data(coin_id=coin_id, days=days, currency=currency)
+        logging.warning("Investment date is today or in the future; cannot simulate.")
+        return pd.DataFrame(columns=["timestamp","price","portfolio_value"])
+
+    df = fetch_crypto_data(symbol, days, currency)
+
+    # Ensure timestamp is datetime
+    if not pd.api.types.is_datetime64_any_dtype(df["timestamp"]):
+        df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+    df = df.dropna(subset=["timestamp"])
+
+    df = df[df["timestamp"].dt.date >= invest_dt].copy()
     if df.empty:
-        return pd.DataFrame(columns=["timestamp", "portfolio_value"])
-    df = df[df["timestamp"].dt.date >= invest_date_only]
-    if df.empty:
-        return pd.DataFrame(columns=["timestamp", "portfolio_value"])
+        logging.warning(f"No data after {invest_dt} for {symbol}")
+        return pd.DataFrame(columns=["timestamp","price","portfolio_value"])
+
     start_price = df["price"].iloc[0]
     df["portfolio_value"] = amount * (df["price"] / start_price)
-    return df
+    return df[["timestamp","price","portfolio_value"]]

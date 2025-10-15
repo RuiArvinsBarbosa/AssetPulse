@@ -6,12 +6,6 @@ from data.db_connection import get_connection
 # INSERT FUNCTIONS
 # -----------------------------
 
-conn = get_connection()
-if conn:
-    with conn.cursor() as cur:
-        cur.execute("SELECT NOW();")
-        print("Supabase server time:", cur.fetchone())
-
 def insert_users(username: str, email: str, user_ins: str):
     """Insert a single user into the users table."""
     try:

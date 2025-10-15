@@ -11,13 +11,14 @@
 ## 🚀 Features
 
 * Fetch live cryptocurrency and stock market data
-* Candlestick charts with moving averages (7-day, 30-day)
+* Interactive candlestick charts with moving averages (7-day, 30-day)
 * Portfolio simulator – track your investments 💰
 * Export portfolio data to CSV/Excel (planned)
 * Configurable dashboard for coins, stocks, currencies, and historical range
 * Optional PostgreSQL logging for historical price tracking
 * Automatic error handling and API rate limit retries
 * Customizable defaults: theme, currency, data refresh rate, logging
+* Expanded asset coverage: 11 cryptocurrencies and 12 stocks
 
 ---
 
@@ -27,7 +28,7 @@
 * **Frontend:** Streamlit
 * **Visualization:** Plotly
 * **Data Sources:** Yahoo Finance API (stocks), CoinGecko API (crypto)
-* **Database:** PostgreSQL for historical price logging
+* **Database:** PostgreSQL for optional historical logging
 
 ---
 
@@ -70,19 +71,41 @@ All environment settings are stored in `config/config.json`. You can adjust asse
 }
 ```
 
-**Explanation:**
+**Explanation of fields:**
 
-* **coins** – List of cryptocurrencies to fetch from CoinGecko
+* **coins** – Cryptocurrencies to fetch from CoinGecko
 * **stocks** – Stock ticker symbols to fetch from Yahoo Finance
-* **currencies** – Available currencies in the dashboard
-* **days** – Number of historical days to fetch
-* **defaults** – Dashboard defaults:
-* 	**app_theme** – Light or Dark theme
-* 	**default_currency** – Currency shown on dashboard
-* 	**data_refresh_rate** – Refresh rate in minutes
-* 	**enable_logging** – Enable/disable logging
-* **postgres** – Database credentials for historical logging (optional)
+* **currencies** – Dashboard display currencies
+* **days** – Historical data range (days)
+* **defaults** – Dashboard default settings:
+
+  * **app_theme** – Light or Dark theme
+  * **default_currency** – Currency displayed on the dashboard
+  * **data_refresh_rate** – Refresh interval in minutes
+  * **enable_logging** – Enable or disable historical logging
+* **postgres** – PostgreSQL credentials (optional)
 * **coin_map** – Maps short symbols to CoinGecko IDs
+
+---
+
+## 🖥️ Deployment Modes
+
+AssetPulse supports **dual deployment modes** for flexible usage:
+
+1. **Local Docker PostgreSQL**
+
+   * Run a local PostgreSQL database using Docker
+   * Ideal for development, testing, or offline use
+   * Fully compatible with all dashboard features
+
+2. **Supabase-hosted PostgreSQL**
+
+   * Connect to a cloud PostgreSQL database via Supabase
+   * Ideal for production or sharing the dashboard online
+   * Automatically accessible from anywhere, no local setup required
+
+**How to switch:**
+Simply update your `config/config.json` with the correct PostgreSQL credentials. The app automatically detects the database and logs historical data accordingly.
 
 ---
 
@@ -95,7 +118,7 @@ git clone https://github.com/yourusername/AssetPulse.git
 cd AssetPulse
 ```
 
-2. Create a virtual environment and install dependencies:
+2. Create a virtual environment:
 
 ```bash
 python -m venv venv
@@ -111,13 +134,13 @@ source venv/bin/activate
 venv\Scripts\activate
 ```
 
-4. Install requirements:
+4. Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-5. Configure your `config/config.json` (see Configuration section above).
+5. Configure `config/config.json` (see Configuration section above).
 
 6. Run the Streamlit dashboard:
 
@@ -131,7 +154,7 @@ streamlit run dashboard.py
 
 ## 🌐 Deployment
 
-* The app is deployed online using **Render**.
+* Hosted online using **Render**
 * Live demo: [https://assetpulse.onrender.com](https://assetpulse.onrender.com)
 
 ---
@@ -151,4 +174,4 @@ streamlit run dashboard.py
 * **Portfolio Simulator:** Tracks hypothetical investments over historical data
 * **Custom Defaults:** Theme, currency, refresh rate, and logging can be configured
 * **Expanded Asset Coverage:** 11 cryptocurrencies, 12 stocks
-* **First Final Version:** Stable, fully-configurable, and ready for deployment
+* **Stable Version:** Fully-configurable and ready for deployment
