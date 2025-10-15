@@ -69,54 +69,55 @@ def get_fx_rate(currency: str):
 # ================================
 # 📈 CRYPTO DATA FETCHER
 # ================================
-@st.cache_data(ttl=3600)
 def fetch_crypto_data(symbol, days, currency):
-    """Fetch historical crypto prices + indicators from CoinGecko."""
     symbol_upper = symbol.upper()
-
-    # Try to match both symbol code and coin_id directly
-    symbol_upper = symbol.upper()
-    coin_id = COIN_MAP.get(symbol_upper, symbol.lower())  # fallback: use symbol itself as coin_id
-    logging.warning(f"Resolved coin_id: {coin_id}")
-    
-    if not coin_id:
-        logging.error(f"Symbol '{symbol}' not in COIN_MAP or valid CoinGecko ID")
-        return pd.DataFrame(columns=["timestamp","price","MA7","MA30","daily_change","volatility"])
+    coin_id = COIN_MAP.get(symbol_upper, symbol.lower())
+    logging.info(f"Resolved coin_id: {coin_id}")
 
     url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
     params = {"vs_currency": currency.lower(), "days": days}
-    resp = safe_request(url, params=params)
+    
+    wait_time = 2
+    max_retries = 5
 
-    if not resp:
-        logging.error(f"Failed to fetch crypto data for {symbol} ({coin_id}) after retries.")
-        return pd.DataFrame(columns=["timestamp","price","MA7","MA30","daily_change","volatility"])
+    for attempt in range(max_retries):
+        try:
+            resp = requests.get(url, params=params, timeout=10)
+            
+            if resp.status_code == 429:
+                logging.warning(f"429 Too Many Requests -> retrying in {wait_time}s...")
+                time.sleep(wait_time)
+                wait_time *= 2
+                continue
 
-    try:
-        prices = resp.json().get("prices", [])
-        if not prices:
-            logging.warning(f"No prices returned for {symbol}")
-            return pd.DataFrame(columns=["timestamp","price","MA7","MA30","daily_change","volatility"])
+            resp.raise_for_status()
+            data = resp.json().get("prices", [])
+            if not data:
+                logging.warning(f"No prices returned for {symbol}")
+                return pd.DataFrame(columns=["timestamp", "price", "MA7", "MA30", "daily_change", "volatility"])
 
-        df = pd.DataFrame(prices, columns=["timestamp", "price"])
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", errors="coerce")
-        df = df.dropna(subset=["timestamp"])
+            df = pd.DataFrame(data, columns=["timestamp", "price"])
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+            if currency.lower() != "usd":
+                fx_rate = get_fx_rate(currency)
+                df["price"] *= fx_rate
 
-        if currency.lower() != "usd":
-            fx_rate = get_fx_rate(currency)
-            df["price"] *= fx_rate
+            df["MA7"] = df["price"].rolling(7, min_periods=1).mean()
+            df["MA30"] = df["price"].rolling(30, min_periods=1).mean()
+            df["daily_change"] = df["price"].pct_change() * 100
+            df["volatility"] = df["price"].rolling(7, min_periods=1).std()
 
-        # Indicators
-        df["MA7"] = df["price"].rolling(7, min_periods=1).mean()
-        df["MA30"] = df["price"].rolling(30, min_periods=1).mean()
-        df["daily_change"] = df["price"].pct_change() * 100
-        df["volatility"] = df["price"].rolling(7, min_periods=1).std()
+            logging.info(f"✅ Fetched {len(df)} rows for {symbol}")
+            return df.reset_index(drop=True)
 
-        logging.info(f"Fetched {len(df)} rows for {symbol} ({coin_id})")
-        return df.reset_index(drop=True)
+        except requests.RequestException as e:
+            logging.error(f"Attempt {attempt+1} failed for {symbol}: {e}")
+            time.sleep(wait_time)
+            wait_time *= 2
 
-    except Exception as e:
-        logging.error(f"Error processing crypto data for {symbol}: {e}")
-        return pd.DataFrame(columns=["timestamp","price","MA7","MA30","daily_change","volatility"])
+    logging.error(f"Failed to fetch crypto data for {symbol} ({coin_id}) after {max_retries} retries.")
+    return pd.DataFrame(columns=["timestamp", "price", "MA7", "MA30", "daily_change", "volatility"])
+
 
 
 # ================================
