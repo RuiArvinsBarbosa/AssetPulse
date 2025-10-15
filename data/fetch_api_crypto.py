@@ -73,9 +73,12 @@ def get_fx_rate(currency: str):
 def fetch_crypto_data(symbol, days, currency):
     """Fetch historical crypto prices + indicators from CoinGecko."""
     symbol_upper = symbol.upper()
-    coin_id = COIN_MAP.get(symbol_upper, symbol.lower())
-    logging.warning(f"Resolved coin_id: {coin_id}")
 
+    # Try to match both symbol code and coin_id directly
+    symbol_upper = symbol.upper()
+    coin_id = COIN_MAP.get(symbol_upper, symbol.lower())  # fallback: use symbol itself as coin_id
+    logging.warning(f"Resolved coin_id: {coin_id}")
+    
     if not coin_id:
         logging.error(f"Symbol '{symbol}' not in COIN_MAP or valid CoinGecko ID")
         return pd.DataFrame(columns=["timestamp","price","MA7","MA30","daily_change","volatility"])
@@ -134,7 +137,11 @@ def simulate_crypto_investment_curve(symbol, invest_date, amount, currency):
         logging.warning(f"No data for {symbol}")
         return pd.DataFrame(columns=["timestamp","price","portfolio_value"])
 
+    # Ensure timestamp is datetime
+    df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+    df = df.dropna(subset=["timestamp"])
     df = df[df["timestamp"].dt.date >= invest_dt]
+
     if df.empty:
         logging.warning(f"No data after {invest_dt} for {symbol}")
         return pd.DataFrame(columns=["timestamp","price","portfolio_value"])
