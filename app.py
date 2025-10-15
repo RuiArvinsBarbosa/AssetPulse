@@ -17,8 +17,8 @@ from data.table_users_crud import (
 if os.getenv("RENDER") is None:
     load_dotenv()
 
-print("Using Supabase:", os.getenv("USE_SUPABASE"))
-print("DB Host:", os.getenv("SUPABASE_POSTGRES_HOST"))
+st.write("USE_SUPABASE:", os.getenv("USE_SUPABASE"))
+st.write("SUPABASE_HOST:", os.getenv("SUPABASE_POSTGRES_HOST"))
 
 # -------------------------------
 # Load .env first
