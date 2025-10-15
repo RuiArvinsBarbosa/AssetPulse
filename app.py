@@ -13,6 +13,13 @@ from data.table_users_crud import (
     delete_users,
 )
 
+# Only load .env locally, not on Render
+if os.getenv("RENDER") is None:
+    load_dotenv()
+
+print("Using Supabase:", os.getenv("USE_SUPABASE"))
+print("DB Host:", os.getenv("SUPABASE_POSTGRES_HOST"))
+
 # -------------------------------
 # Load .env first
 # -------------------------------

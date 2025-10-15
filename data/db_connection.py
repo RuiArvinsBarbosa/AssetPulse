@@ -1,31 +1,46 @@
+# ==========================================================
+# db_connection.py
+# ==========================================================
+# Handles PostgreSQL connections for both local Docker and Supabase.
+# Uses environment variables from .env and automatically applies SSL for Supabase.
+# ==========================================================
+
 import psycopg2
 import os
 from psycopg2.extras import RealDictCursor
+from dotenv import load_dotenv
 
-# ==========================================================
-# 🔀 Database selection: choose 'local' or 'supabase'
-# ==========================================================
-DB_ENV = os.environ.get("DB_ENV", "local")  # options: "local" or "supabase"
+# Load environment variables from .env
+load_dotenv()
 
 def get_connection():
-    """Return a PostgreSQL connection based on DB_ENV using environment variables only."""
+    """
+    Return a PostgreSQL connection based on USE_SUPABASE flag in .env.
     
-    if DB_ENV == "supabase":
-        host     = os.environ.get("SUPABASE_POSTGRES_HOST")
-        port     = int(os.environ.get("SUPABASE_POSTGRES_PORT", 5432))
-        database = os.environ.get("SUPABASE_POSTGRES_DB")
-        user     = os.environ.get("SUPABASE_POSTGRES_USER")
-        password = os.environ.get("SUPABASE_POSTGRES_PASSWORD")
-    else:  # local Docker
-        host     = os.environ.get("LOCAL_POSTGRES_HOST")
-        port     = int(os.environ.get("LOCAL_POSTGRES_PORT", 5432))
-        database = os.environ.get("LOCAL_POSTGRES_DB")
-        user     = os.environ.get("LOCAL_POSTGRES_USER")
-        password = os.environ.get("LOCAL_POSTGRES_PASSWORD")
+    Supabase connections use SSL. Local Docker connections do not.
+    """
 
-    # Check that all required credentials are provided
+    # Determine which database to use
+    use_supabase = os.getenv("USE_SUPABASE", "false").lower() == "true"
+
+    if use_supabase:
+        host     = os.getenv("SUPABASE_POSTGRES_HOST")
+        port     = int(os.getenv("SUPABASE_POSTGRES_PORT", 5432))
+        database = os.getenv("SUPABASE_POSTGRES_DB")
+        user     = os.getenv("SUPABASE_POSTGRES_USER")
+        password = os.getenv("SUPABASE_POSTGRES_PASSWORD")
+        sslmode  = "require"  # Supabase requires SSL
+    else:
+        host     = os.getenv("LOCAL_POSTGRES_HOST")
+        port     = int(os.getenv("LOCAL_POSTGRES_PORT", 5432))
+        database = os.getenv("LOCAL_POSTGRES_DB")
+        user     = os.getenv("LOCAL_POSTGRES_USER")
+        password = os.getenv("LOCAL_POSTGRES_PASSWORD")
+        sslmode  = None
+
+    # Check that all credentials are provided
     if not all([host, database, user, password]):
-        print("❌ Missing database credentials. Please check your .env file or environment variables.")
+        print("❌ Missing database credentials. Please check your .env file.")
         return None
 
     try:
@@ -35,9 +50,10 @@ def get_connection():
             database=database,
             user=user,
             password=password,
-            cursor_factory=RealDictCursor  # returns dict-like rows instead of tuples
+            sslmode=sslmode,
+            cursor_factory=RealDictCursor  # return dict-like rows
         )
-        print(f"✅ Connected to {'Supabase' if DB_ENV=='supabase' else 'Local Docker'} database")
+        print(f"✅ Connected to {'Supabase' if use_supabase else 'Local Docker'} database")
         return conn
     except psycopg2.Error as e:
         print(f"❌ Failed to connect to PostgreSQL: {e}")
