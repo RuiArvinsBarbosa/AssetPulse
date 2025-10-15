@@ -40,7 +40,7 @@ def get_fx_rate(currency: str):
 # 📈 STOCK DATA FETCHER
 # ================================
 @st.cache_data(ttl=3600)
-def fetch_stock_data(ticker="AAPL", days=30, currency="usd"):
+def fetch_stock_data(ticker, days, currency):
     """Fetch stock historical data + indicators."""
     try:
         end = datetime.today().date()
@@ -63,18 +63,16 @@ def fetch_stock_data(ticker="AAPL", days=30, currency="usd"):
             return pd.DataFrame(columns=["timestamp","price","MA7","MA30","daily_change","volatility"])
 
         df = df[['Date', close_col]].rename(columns={'Date':'timestamp', close_col:'price'})
-
-        # FX conversion
-        fx_rate = get_fx_rate(currency)
-        df["price"] = df["price"] * fx_rate
-
-        # Rolling indicators
-        window_7  = min(7, len(df))
-        window_30 = min(30, len(df))
-        df["MA7"] = df["price"].rolling(window=7, min_periods=1).mean()
-        df["MA30"] = df["price"].rolling(window=30, min_periods=1).mean()
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        
+        if not df.empty and currency.lower() != "usd":
+            fx_rate = get_fx_rate(currency)
+            df["price"] *= fx_rate
+        
+        df["MA7"] = df["price"].rolling(7, min_periods=1).mean()
+        df["MA30"] = df["price"].rolling(30, min_periods=1).mean()
         df["daily_change"] = df["price"].pct_change() * 100
-        df["volatility"]   = df["price"].rolling(window_7).std()
+        df["volatility"] = df["price"].rolling(7, min_periods=1).std()
 
         df = df.dropna(subset=["price"]).reset_index(drop=True)
         logging.info(f"Fetched {ticker} {len(df)} rows from {start} to {end}")
@@ -88,7 +86,7 @@ def fetch_stock_data(ticker="AAPL", days=30, currency="usd"):
 # 📊 SIMULATE STOCK INVESTMENT
 # ================================
 @st.cache_data(ttl=3600)
-def simulate_stock_investment_curve(ticker="AAPL", invest_date=datetime(2024,1,1), amount=1000.0, currency="usd"):
+def simulate_stock_investment_curve(ticker, invest_date, amount, currency):
     """Return portfolio evolution from invest_date until today."""
     today = datetime.today().date()
     invest_dt = invest_date.date() if isinstance(invest_date, datetime) else invest_date
@@ -98,7 +96,7 @@ def simulate_stock_investment_curve(ticker="AAPL", invest_date=datetime(2024,1,1
         return pd.DataFrame(columns=["timestamp","portfolio_value","price"])
 
     df = fetch_stock_data(ticker, days, currency)
-    df = df[df["timestamp"].dt.date >= invest_dt]
+    df = df[df["timestamp"].dt.date >= invest_dt].copy()
     if df.empty:
         logging.warning(f"No data after {invest_dt} for {ticker}")
         return pd.DataFrame(columns=["timestamp","portfolio_value","price"])

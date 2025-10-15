@@ -4,6 +4,7 @@ import pandas as pd
 import logging
 import os
 import json
+import functools
 
 # --- Logging setup ---
 logging.basicConfig(
@@ -14,6 +15,15 @@ logging.basicConfig(
 # --- Load config safely ---
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CONFIG_PATH = os.path.join(BASE_DIR, "config", "config.json")
+
+# --- Cached versions to prevent hitting rate limits ---
+@functools.lru_cache(maxsize=128)
+def cached_fetch_crypto_data(coin_id, days, currency):
+    return fetch_crypto_data(coin_id=coin_id, days=days, currency=currency)
+
+@functools.lru_cache(maxsize=256)
+def cached_get_crypto_price_on_date(symbol, date_value, currency):
+    return get_crypto_price_on_date(symbol=symbol, date_value=date_value, currency=currency)
 
 try:
     with open(CONFIG_PATH, "r") as f:
@@ -32,22 +42,22 @@ def get_fx_rate(currency: str):
     if currency.lower() == "usd":
         return 1.0
     try:
-        url = "https://open.er-api.com/v6/latest/USD"
+        url      = "https://open.er-api.com/v6/latest/USD"
         response = requests.get(url, timeout=10)
-        data = response.json()
+        data     = response.json()
         return data.get("rates", {}).get(currency.upper(), 1.0)
     except Exception as e:
         logging.error(f"Failed to fetch FX rate for {currency}, defaulting to 1.0: {e}")
         return 1.0
 
 # --- Crypto fetch ---
-def fetch_crypto_data(coin_id="bitcoin", days=30, currency="usd"):
+def fetch_crypto_data(coin_id, days, currency):
     coin_id  = coin_id.lower()
     currency = currency.lower()
-    end   = datetime.today().date()
-    start = end - timedelta(days=days)
-    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
-    params = {"vs_currency": currency, "days": days}
+    end      = datetime.today().date()
+    start    = end - timedelta(days=days)
+    url      = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
+    params   = {"vs_currency": currency, "days": days}
     try:
         response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
@@ -59,10 +69,10 @@ def fetch_crypto_data(coin_id="bitcoin", days=30, currency="usd"):
         if currency != "usd":
             fx = get_fx_rate(currency)
             df["price"] *= fx
-        df["MA7"] = df["price"].rolling(7).mean()
-        df["MA30"] = df["price"].rolling(30).mean()
+        df["MA7"]          = df["price"].rolling(7).mean()
+        df["MA30"]         = df["price"].rolling(30).mean()
         df["daily_change"] = df["price"].pct_change() * 100
-        df["volatility"] = df["price"].rolling(7).std()
+        df["volatility"]   = df["price"].rolling(7).std()
         df = df.dropna(subset=["MA7"])
         return df
     except requests.exceptions.RequestException as e:
@@ -70,7 +80,7 @@ def fetch_crypto_data(coin_id="bitcoin", days=30, currency="usd"):
         return pd.DataFrame(columns=["timestamp", "price", "MA7", "MA30", "daily_change", "volatility"])
 
 # --- Price on date ---
-def get_crypto_price_on_date(symbol="BTC", date_value=None, currency="usd"):
+def get_crypto_price_on_date(symbol, date_value, currency):
     if date_value is None:
         date_value = datetime.today().date()
     coin_id = COIN_MAP.get(symbol.upper())
@@ -90,10 +100,10 @@ def get_crypto_price_on_date(symbol="BTC", date_value=None, currency="usd"):
         return None
 
 # --- Simulate investment ---
-def simulate_investment(symbol="BTC", invest_date=None, amount=1000.0, currency="usd"):
+def simulate_investment(symbol, invest_date, amount, currency):
     if invest_date is None:
         invest_date = datetime(2023, 1, 1)
-    invest_price = get_crypto_price_on_date(symbol, invest_date, currency)
+    invest_price = cached_get_crypto_price_on_date(symbol, invest_date, currency)
     current_price = get_crypto_price_on_date(symbol, datetime.today().date(), currency)
     if invest_price is None or current_price is None:
         return None
@@ -103,20 +113,20 @@ def get_valid_coin_id(symbol: str):
     symbol = symbol.upper()
     return COIN_MAP.get(symbol, symbol.lower())
 
-def get_crypto_timeseries(symbol="BTC", days=365, currency="usd"):
+def get_crypto_timeseries(symbol, days, currency):
     coin_id = get_valid_coin_id(symbol)
     return fetch_crypto_data(coin_id=coin_id, days=days, currency=currency)
 
-def simulate_investment_curve(symbol="BTC", invest_date=None, amount=1000.0, currency="usd"):
+def simulate_investment_curve(symbol, invest_date, amount, currency):
     if invest_date is None:
         invest_date = datetime(2023, 1, 1)
-    today = datetime.today().date()
+    today            = datetime.today().date()
     invest_date_only = invest_date.date() if isinstance(invest_date, datetime) else invest_date
-    days = (today - invest_date_only).days
+    days             = (today - invest_date_only).days
     if days <= 0:
         return pd.DataFrame(columns=["timestamp", "portfolio_value"])
     coin_id = get_valid_coin_id(symbol)
-    df = fetch_crypto_data(coin_id=coin_id, days=days, currency=currency)
+    df = cached_fetch_crypto_data(coin_id=coin_id, days=days, currency=currency)
     if df.empty:
         return pd.DataFrame(columns=["timestamp", "portfolio_value"])
     df = df[df["timestamp"].dt.date >= invest_date_only]
