@@ -13,17 +13,41 @@ from data.table_users_crud import (
     delete_users,
 )
 
-# Only load .env locally, not on Render
-if os.getenv("RENDER") is None:
-    load_dotenv()
+# -------------------------------
+# Load .env first
+# -------------------------------
+from data.db_connection import get_connection
+
 
 st.write("USE_SUPABASE:", os.getenv("USE_SUPABASE"))
 st.write("SUPABASE_HOST:", os.getenv("SUPABASE_POSTGRES_HOST"))
 
+# Connect to the database
+conn = get_connection()
+
+if conn:
+    try:
+        with conn.cursor() as cur:
+            # Simple query: fetch first 5 users
+            cur.execute("SELECT seq_no, username, email FROM users ORDER BY seq_no ASC LIMIT 5")
+            rows = cur.fetchall()
+            
+            if rows:
+                st.write("✅ Fetched users from Supabase:")
+                st.table(rows)
+            else:
+                st.write("⚠️ No rows returned from Supabase 'users' table.")
+    except Exception as e:
+        st.write(f"❌ Error fetching data: {e}")
+else:
+    st.write("❌ Could not connect to the database")
+
 # -------------------------------
 # Load .env first
 # -------------------------------
-load_dotenv()  # Load .env secrets (PostgreSQL credentials, etc.)
+# Only load .env locally, not on Render
+if os.getenv("RENDER") is None:
+    load_dotenv()                # Load .env secrets (PostgreSQL credentials, etc.)
 
 CONFIG_PATH = "config/config.json"
 if os.path.exists(CONFIG_PATH):
