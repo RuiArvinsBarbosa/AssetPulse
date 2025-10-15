@@ -39,7 +39,7 @@ def get_fx_rate(currency: str):
 # ================================
 # 📈 CRYPTO DATA FETCHER
 # ================================
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=3600)
 def fetch_crypto_data(symbol, days, currency="USD"):
     """Fetch historical crypto prices + indicators from CoinGecko."""
     symbol_upper = symbol.upper()
