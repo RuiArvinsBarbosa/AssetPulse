@@ -2,21 +2,18 @@
 # db_connection.py
 # ==========================================================
 # Handles PostgreSQL connections for both local Docker and Supabase.
-# Uses environment variables from .env and automatically applies SSL for Supabase.
+# Uses environment variables and automatically applies SSL for Supabase.
 # ==========================================================
-
 import psycopg2
 import os
 from psycopg2.extras import RealDictCursor
-from dotenv import load_dotenv
 
-# Load environment variables from .env
-load_dotenv()
+USE_SUPABASE = os.getenv("USE_SUPABASE", "false").lower() == "true"
 
 def get_connection():
     """
-    Return a PostgreSQL connection based on USE_SUPABASE flag in .env.
-    
+    Return a PostgreSQL connection based on USE_SUPABASE flag in environment variables.
+
     Supabase connections use SSL. Local Docker connections do not.
     """
 
@@ -40,7 +37,7 @@ def get_connection():
 
     # Check that all credentials are provided
     if not all([host, database, user, password]):
-        print("❌ Missing database credentials. Please check your .env file.")
+        print("❌ Missing database credentials. Please check your environment variables.")
         return None
 
     try:
@@ -53,6 +50,7 @@ def get_connection():
             sslmode=sslmode,
             cursor_factory=RealDictCursor  # return dict-like rows
         )
+        # Only print which DB, not sensitive info
         print(f"✅ Connected to {'Supabase' if use_supabase else 'Local Docker'} database")
         return conn
     except psycopg2.Error as e:

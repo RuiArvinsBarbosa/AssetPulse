@@ -5,12 +5,6 @@ import pandas as pd
 import json, os
 
 # -------------------------------
-# Load .env
-# -------------------------------
-from dotenv import load_dotenv
-load_dotenv()
-
-# -------------------------------
 # Project imports
 # -------------------------------
 from data.fetch_api_crypto import get_crypto_price_on_date, simulate_investment_curve

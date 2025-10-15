@@ -13,11 +13,14 @@ from data.table_users_crud import (
     delete_users,
 )
 
+from data.db_connection import get_connection
+
 # -------------------------------
 # Load .env first
 # -------------------------------
-from data.db_connection import get_connection
-
+# Only load .env locally, not on Render
+if os.getenv("RENDER") is None:
+    load_dotenv()                # Load .env secrets (PostgreSQL credentials, etc.)
 
 st.write("USE_SUPABASE:", os.getenv("USE_SUPABASE"))
 st.write("SUPABASE_HOST:", os.getenv("SUPABASE_POSTGRES_HOST"))
@@ -41,13 +44,6 @@ if conn:
         st.write(f"❌ Error fetching data: {e}")
 else:
     st.write("❌ Could not connect to the database")
-
-# -------------------------------
-# Load .env first
-# -------------------------------
-# Only load .env locally, not on Render
-if os.getenv("RENDER") is None:
-    load_dotenv()                # Load .env secrets (PostgreSQL credentials, etc.)
 
 CONFIG_PATH = "config/config.json"
 if os.path.exists(CONFIG_PATH):

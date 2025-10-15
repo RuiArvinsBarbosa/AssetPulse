@@ -57,7 +57,6 @@ col_user.markdown(
     unsafe_allow_html=True
 )
 
-
 st.markdown("Adjust your application preferences below.")
 
 # ==========================================================

@@ -8,12 +8,6 @@ from datetime import datetime, timedelta
 import requests
 
 # -------------------------------
-# Load .env first
-# -------------------------------
-from dotenv import load_dotenv
-load_dotenv()
-
-# -------------------------------
 # Add project root to path
 # -------------------------------
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

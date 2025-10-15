@@ -7,11 +7,6 @@ from data.table_transactions_crud import fetch_all_user_transactions
 from dotenv import load_dotenv
 
 # -------------------------------
-# Load .env
-# -------------------------------
-load_dotenv()
-
-# -------------------------------
 # Load config.json
 # -------------------------------
 BASE_DIR    = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
