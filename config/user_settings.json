@@ -1,5 +1,5 @@
 {
-    "app_theme": "Dark",
+    "app_theme": "Light",
     "default_currency": "EUR",
     "data_refresh_rate": 15,
     "enable_logging": true

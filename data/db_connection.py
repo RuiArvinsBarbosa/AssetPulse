@@ -44,7 +44,7 @@ def get_connection():
         sslmode = None
 
     # Debug: print all credentials being used (do not print password in prod)
-    print(f"DEBUG: Connecting to {host}:{port} db={database} user={user}")
+    # print(f"DEBUG: Connecting to {host}:{port} db={database} user={user}")
 
     # Check all required variables
     if not all([host, database, user, password]):
@@ -60,7 +60,7 @@ def get_connection():
             sslmode=sslmode,
             cursor_factory=RealDictCursor
         )
-        print(f"✅ Connected to {'Supabase' if USE_SUPABASE else 'Local Docker'} database at {host}")
+        # print(f"✅ Connected to {'Supabase' if USE_SUPABASE else 'Local Docker'} database at {host}")
         return conn
     except psycopg2.Error as e:
         raise ConnectionError(f"❌ Failed to connect to PostgreSQL: {e}")
