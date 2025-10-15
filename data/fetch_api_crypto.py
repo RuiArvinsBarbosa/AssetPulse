@@ -42,7 +42,15 @@ def get_fx_rate(currency: str):
 @st.cache_data(ttl=600)
 def fetch_crypto_data(symbol, days, currency="USD"):
     """Fetch historical crypto prices + indicators from CoinGecko."""
-    coin_id = COIN_MAP.get(symbol.upper())
+    symbol_upper = symbol.upper()
+    coin_id = COIN_MAP.get(symbol_upper, symbol.lower())  # fallback: use symbol itself as coin_id
+    logging.warning(f"Resolved coin_id: {coin_id}")
+
+    if not coin_id:
+        logging.error(f"Symbol '{symbol}' not in COIN_MAP or valid CoinGecko ID")
+        return pd.DataFrame(columns=["timestamp","price","MA7","MA30","daily_change","volatility"])
+    
+    
     if not coin_id:
         logging.error(f"Symbol '{symbol}' not in COIN_MAP")
         return pd.DataFrame(columns=["timestamp","price","MA7","MA30","daily_change","volatility"])

@@ -114,7 +114,6 @@ def fetch_transactions_by_user_asset(asset_code: str, user_seq_no: int):
             )
             
             rows = cur.fetchall()
-            print(f"cur.fetchall()={cur.fetchall()}")
             return rows
     except Exception as e:
         print(f"Error fetching transactions for user_seq_no={user_seq_no} and asset_code={asset_code}: {e}")
