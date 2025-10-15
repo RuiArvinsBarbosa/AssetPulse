@@ -7,6 +7,18 @@
 import psycopg2
 import os
 from psycopg2.extras import RealDictCursor
+import socket
+
+# ==============================
+# Force IPv4 for psycopg2
+# ==============================
+_original_getaddrinfo = socket.getaddrinfo
+def getaddrinfo_ipv4_only(*args, **kwargs):
+    results = _original_getaddrinfo(*args, **kwargs)
+    # Only keep IPv4 addresses
+    return [x for x in results if x[0] == socket.AF_INET]
+
+socket.getaddrinfo = getaddrinfo_ipv4_only
 
 USE_SUPABASE = os.getenv("USE_SUPABASE", "false").lower() == "true"
 
