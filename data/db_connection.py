@@ -10,6 +10,9 @@ from psycopg2.extras import RealDictCursor
 
 USE_SUPABASE = os.getenv("USE_SUPABASE", "false").lower() == "true"
 
+print("DEBUG: USE_SUPABASE =", USE_SUPABASE)
+print("DEBUG: RENDER branch =", "Pooler" if not os.getenv("SUPABASE_DIRECT_HOST") else "Direct Connection")
+
 def get_connection():
     """
     Return a PostgreSQL connection based on USE_SUPABASE flag.
